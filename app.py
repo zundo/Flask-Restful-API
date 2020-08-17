@@ -3,17 +3,18 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Float
 import os
 from flask_marshmallow import Marshmallow
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token
 
 app = Flask(__name__)
 # add config for firebase database, so tell him where to store it
 basedir = os.path.abspath(os.path.dirname(__file__))
 # add configuration variables
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'site_area.db')
-
-
-# initialize our db before using it
+app.config['JWT_SECRET_KEY'] = 'super-secret'  # change this IRL
+# initialize our db before using it, also jwt
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
+jwt = JWTManager(app)
 
 
 # creation of the db
@@ -157,6 +158,24 @@ def register():
         db.session.add(user)
         db.session.commit()
         return jsonify(message="User successfully created. You can now log in!"), 201
+
+
+# form fields accepting json post, detect first if it is json post form
+@app.route('/login', methods=['POST'])
+def login():
+    if request.is_json:
+        email = request.json['email']
+        password = request.json['password']
+    else:
+        email = request.form['email']
+        password = request.form['password']
+
+    test = User.query.filter_by(email=email, password=password).first()
+    if test:
+        access_token = create_access_token(identity=email)
+        return jsonify(message='Login Succeeded!', access_token=access_token)
+    else:
+        return jsonify(message='Wrong login or pwd'), 401
 
 
 # Database MODELING
