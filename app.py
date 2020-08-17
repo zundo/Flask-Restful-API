@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Float
 import os
+from flask_marshmallow import Marshmallow
 
 app = Flask(__name__)
 # add config for firebase database, so tell him where to store it
@@ -12,6 +13,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'si
 
 # initialize our db before using it
 db = SQLAlchemy(app)
+ma = Marshmallow(app)
 
 
 # creation of the db
@@ -134,8 +136,11 @@ def url_variables(name: str, whid: str, age: int):
 
 
 # this route is created to only respond to GET request
-@app.route('/warehouse')
-
+@app.route('/sites', methods=['GET'])
+def sites():
+    sites_list = Sites.query.all()
+    result = sites_schema.dump(sites_list)
+    return jsonify(result)
 
 
 # Database MODELING
@@ -165,6 +170,26 @@ class Sites(db.Model):
     proxy = Column(String)
     area = Column(Float)
     idf = Column(Integer)
+
+
+# class for Marshmallow
+class UserSchema(ma.Schema):
+    class Meta:
+        fields = ('id', 'first_name', 'last_name', 'email', 'password', 'whid', 'role')
+
+
+class SitesSchema(ma.Schema):
+    class Meta:
+        fields = ('whid_id', 'whid_name', 'whid_type', 'whid_home', 'country', 'region', 'sub_region', 'site_lead',
+                  'sme', 'proxy', 'area', 'idf')
+
+
+# now we need to instanciate our Schemas in two different ways ## many=True is a deserializer
+user_schema = UserSchema()
+users_schema = UserSchema(many=True)
+
+site_schema = SitesSchema()
+sites_schema = SitesSchema(many=True)
 
 
 if __name__ == '__main__':
