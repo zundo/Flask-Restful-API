@@ -12,7 +12,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 # add configuration variables
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'site_area.db')
 app.config['JWT_SECRET_KEY'] = 'super-secret'  # change this IRL
-app.config['MAIL_SERVER']='smtp.mailtrap.io'
+app.config['MAIL_SERVER'] = 'smtp.mailtrap.io'
 app.config['MAIL_PORT'] = 2525
 app.config['MAIL_USERNAME'] = os.environ['MAIL_USERNAME']
 app.config['MAIL_PASSWORD'] = os.environ['MAIL_PASSWORD']
@@ -188,9 +188,7 @@ def login():
 
 @app.route('/retrieve_pwd/<string:email>', methods=['GET'])
 def retrieve_pwd(email: str):
-    print(email)
     user = User.query.filter_by(email=email).first()
-    print(user)
     if user:
         msg = Message("your Amazon Network password is " + user.password,
                       sender="admin@ory4.fr",
@@ -199,6 +197,50 @@ def retrieve_pwd(email: str):
         return jsonify(message="Password sent to " + email)
     else:
         return jsonify(message="That email doesn't exist"), 401
+
+
+@app.route('/site_list/<int:whid_id>', methods=['GET'])
+def site_list(whid_id):
+    whid = Sites.query.filter_by(whid_id=whid_id).first()
+    if whid:
+        result = site_schema.dump(whid)
+        return jsonify(result)
+    else:
+        return jsonify(message="This FC isn't recorded"), 404
+
+
+@app.route('/add_site', methods=['POST'])
+@jwt_required
+def add_site():
+    whid_name = request.form['whid_name']
+    print(whid_name)
+    test = Sites.query.filter_by(whid_name=whid_name).first()
+    if test:
+        return jsonify("There is already a FC with that name"), 409
+    else:
+        whid_id = int(request.form['whid_id'])
+        whid_name = request.form['whid_name']
+        whid_type = request.form['whid_type']
+        whid_home = request.form['whid_home']
+        country = request.form['country']
+        site_lead = request.form['site_lead']
+        sme = request.form['sme']
+        area = float(request.form['area'])
+        idf = float(request.form['idf'])
+
+        new_whid = Sites(whid_id=whid_id,
+                         whid_name=whid_name,
+                         whid_type=whid_type,
+                         whid_home=whid_home,
+                         country=country,
+                         site_lead=site_lead,
+                         sme=sme,
+                         area=area,
+                         idf=idf
+                         )
+        db.session.add(new_whid)
+        db.session.commit()
+        return jsonify(message="You register your FC"), 201
 
 
 # Database MODELING
@@ -232,6 +274,8 @@ class Sites(db.Model):
 
 
 # class for Marshmallow
+
+
 class UserSchema(ma.Schema):
     class Meta:
         fields = ('id', 'first_name', 'last_name', 'email', 'password', 'whid', 'role')
