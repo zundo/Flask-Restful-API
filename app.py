@@ -243,6 +243,30 @@ def add_site():
         return jsonify(message="You register your FC"), 201
 
 
+@app.route('/update_site', methods=['PUT'])
+@jwt_required
+def update_site():
+    whid_id = int(request.form['whid_id'])
+    whid = Sites.query.filter_by(whid_id=whid_id).first()
+    # comment or delete line not needed for the update in the if statement under
+    if whid:
+        whid.whid_name = request.form['whid_name']
+        whid.whid_type = request.form['whid_type']
+        whid.whid_home = request.form['whid_home']
+        whid.country = request.form['country']
+        whid.region = request.form['region']
+        whid.sub_region = request.form['sub_region']
+        whid.site_lead = request.form['site_lead']
+        whid.sme = request.form['sme']
+        whid.proxy = request.form['proxy']
+        whid.area = float(request.form['area'])
+        whid.idf = int(request.form['idf'])
+        db.session.commit()
+        return jsonify(message="You updated " + whid.whid_name + " data!"), 202
+    else:
+        return jsonify(messsage="That FC is not registered yet or does not exist"), 404
+
+
 # Database MODELING
 # start set up model for our db => db models
 class User(db.Model):
