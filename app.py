@@ -3,17 +3,26 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Float
 import os
 from flask_marshmallow import Marshmallow
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token
+from flask_mail import Mail, Message
 
 app = Flask(__name__)
 # add config for firebase database, so tell him where to store it
 basedir = os.path.abspath(os.path.dirname(__file__))
 # add configuration variables
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'site_area.db')
-
-
-# initialize our db before using it
+app.config['JWT_SECRET_KEY'] = 'super-secret'  # change this IRL
+app.config['MAIL_SERVER']='smtp.mailtrap.io'
+app.config['MAIL_PORT'] = 2525
+app.config['MAIL_USERNAME'] = os.environ['MAIL_USERNAME']
+app.config['MAIL_PASSWORD'] = os.environ['MAIL_PASSWORD']
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+# initialize our db before using it, also jwt
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
+jwt = JWTManager(app)
+mail = Mail(app)
 
 
 # creation of the db
@@ -159,9 +168,43 @@ def register():
         return jsonify(message="User successfully created. You can now log in!"), 201
 
 
+# form fields accepting json post, detect first if it is json post form
+@app.route('/login', methods=['POST'])
+def login():
+    if request.is_json:
+        email = request.json['email']
+        password = request.json['password']
+    else:
+        email = request.form['email']
+        password = request.form['password']
+
+    test = User.query.filter_by(email=email, password=password).first()
+    if test:
+        access_token = create_access_token(identity=email)
+        return jsonify(message='Login Succeeded!', access_token=access_token)
+    else:
+        return jsonify(message='Wrong login or pwd'), 401
+
+
+@app.route('/retrieve_pwd/<string:email>', methods=['GET'])
+def retrieve_pwd(email: str):
+    print(email)
+    user = User.query.filter_by(email=email).first()
+    print(user)
+    if user:
+        msg = Message("your Amazon Network password is " + user.password,
+                      sender="admin@ory4.fr",
+                      recipients=[email])
+        mail.send(msg)
+        return jsonify(message="Password sent to " + email)
+    else:
+        return jsonify(message="That email doesn't exist"), 401
+
+
 # Database MODELING
 # start set up model for our db => db models
 class User(db.Model):
+    # noinspection SpellCheckingInspection
     __tablename__ = 'Users'
     id = Column(Integer, primary_key=True)
     first_name = Column(String)
@@ -206,7 +249,6 @@ users_schema = UserSchema(many=True)
 
 site_schema = SitesSchema()
 sites_schema = SitesSchema(many=True)
-
 
 if __name__ == '__main__':
     app.run()
