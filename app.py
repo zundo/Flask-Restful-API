@@ -267,6 +267,18 @@ def update_site():
         return jsonify(messsage="That FC is not registered yet or does not exist"), 404
 
 
+@app.route('/remove_site/<int:whid_id>', methods=['DELETE'])
+@jwt_required
+def remove_site(whid_id: int):
+    whid_id = Sites.query.filter_by(whid_id=whid_id).first()
+    if whid_id:
+        db.session.delete(whid_id)
+        db.session.commit()
+        return jsonify(message='You deleted the ' + str(whid_id) + ' site'), 202
+    else:
+        return jsonify(message="That warehouse does not exist"), 404
+
+
 # Database MODELING
 # start set up model for our db => db models
 class User(db.Model):
